@@ -37,7 +37,7 @@ int main()
             auto newStream = avformat_new_stream(pFormat, codec); 
             if (newStream)
             {
-                auto codecContext = avcodec_alloc_context3(codec); 
+                AVCodecContext* codecContext = avcodec_alloc_context3(codec); 
                 if (codecContext)
                 {
                     newStream->codecpar->codec_id = AV_CODEC_ID_H264;
@@ -45,11 +45,14 @@ int main()
                     newStream->codecpar->width = Width;
                     newStream->codecpar->height = Height;
                     newStream->codecpar->format = AV_PIX_FMT_YUV420P;
-                    newStream->time_base = { 1, 75 };
+                    //newStream->time_base = { 1, 15360 };
+                    newStream->avg_frame_rate = { 75,10 };
                     avcodec_parameters_to_context(codecContext, newStream->codecpar);
 
-                    codecContext->time_base = { 1, 75 };
-                    codecContext->gop_size = 30;
+                    codecContext->time_base = { 10, 75 };
+                    codecContext->gop_size = 12;
+                    codecContext->max_b_frames = 2; 
+                    codecContext->framerate = { 75, 10 }; 
 
                     int fontFace = cv::FONT_HERSHEY_SIMPLEX;
                     double fontScale = 2;
@@ -101,6 +104,11 @@ int main()
 
                                                 frame->pts = av_rescale_q(f, AVRational{ 10, 75 }, newStream->time_base);
 
+  /*                                              if (f == NumFrames - 1)
+                                                {
+                                                    frame->pict_type = AVPictureType::AV_PICTURE_TYPE_P; 
+                                                }*/
+
                                                 if ((ret = avcodec_send_frame(codecContext, frame)) == 0) {
 
                                                     ret = avcodec_receive_packet(codecContext, &pkt); 
@@ -121,6 +129,7 @@ int main()
                                             {
                                                 for (;;)
                                                 {
+                                                    av_packet_unref(&pkt);
                                                     if ((ret = avcodec_receive_packet(codecContext, &pkt)) == AVERROR_EOF)
                                                     {
                                                         break;
@@ -128,7 +137,6 @@ int main()
                                                     else
                                                     {
                                                         ret = av_interleaved_write_frame(pFormat, &pkt);
-                                                        av_packet_unref(&pkt);
                                                     }
                                                 }
 
